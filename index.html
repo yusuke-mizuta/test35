@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Camera + Overlay</title>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+
+    /* カメラ映像 */
+    #video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 80%;
+      object-fit: cover;
+      background: black;
+    }
+
+    /* 下20%の画像 */
+    #overlay {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 20%;
+      object-fit: cover;
+    }
+
+    /* 撮影ボタン */
+    #capture {
+      position: fixed;
+      bottom: 25%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px;
+      font-size: 18px;
+      z-index: 10;
+    }
+
+    /* 撮影結果 */
+    #photo {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 120px;
+      border: 2px solid white;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- カメラ -->
+  <video id="video" autoplay playsinline></video>
+
+  <!-- 下20%画像 -->
+  <img id="overlay" src="画像1.jpg">
+
+  <!-- 撮影 -->
+  <button id="capture">📸</button>
+  <canvas id="canvas" style="display:none;"></canvas>
+  <img id="photo">
+
+  <script>
+    const video = document.getElementById("video");
+
+    // カメラ起動
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    })
+    .then(stream => {
+      video.srcObject = stream;
+    })
+    .catch(err => {
+      alert("カメラ許可エラー: " + err);
+    });
+
+    // 撮影
+    document.getElementById("capture").onclick = () => {
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      // カメラ部分描画（上80%）
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height * 0.8);
+
+      // 下画像描画
+      const overlay = document.getElementById("overlay");
+      ctx.drawImage(overlay, 0, canvas.height * 0.8, canvas.width, canvas.height * 0.2);
+
+      document.getElementById("photo").src = canvas.toDataURL("image/png");
+    };
+  </script>
+
+</body>
+</html>
