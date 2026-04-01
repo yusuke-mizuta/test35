@@ -2,11 +2,11 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Camera App Overlay Crop</title>
+<title>Camera App Overlay Crop Fixed</title>
 <style>
 body { margin:0; overflow:hidden; background:black; }
 #video { position:fixed; top:0; width:100%; height:80%; object-fit:cover; }
-#overlay { display:none; } /* canvas に描画するので非表示 */
+#overlay { display:none; }
 #shutter {
   position:fixed; bottom:25%; left:50%; transform:translateX(-50%);
   width:100px; height:100px; border:5px solid white; border-radius:50%; z-index:10;
@@ -68,26 +68,31 @@ document.getElementById("shutter").onclick = () => {
 
   const W = window.innerWidth;
   const H = window.innerHeight;
-
   canvas.width = W;
   canvas.height = H;
 
-  // 上80% = video
-  ctx.drawImage(video, 0, 0, W, H*0.8);
+  // --- Video 縦横比維持で描画 ---
+  const videoAspect = video.videoWidth / video.videoHeight;
+  const videoDrawWidth = W;
+  const videoDrawHeight = videoDrawWidth / videoAspect;
+  const videoY = 0; // 上からスタート
+  ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, videoY, videoDrawWidth, videoDrawHeight);
 
-  // overlay のアスペクト比維持で横幅固定
+  // --- Overlay 縦横比維持で描画 ---
   const overlayAspect = overlay.naturalWidth / overlay.naturalHeight;
-  const overlayWidth = W;
-  const overlayHeight = overlayWidth / overlayAspect;
+  let overlayDrawWidth = W;
+  let overlayDrawHeight = overlayDrawWidth / overlayAspect;
 
-  // 下端に合わせる
-  const overlayY = H - overlayHeight;
-  // 画面からはみ出た上部分は切る
-  const drawY = overlayY < H*0.8 ? H*0.8 : overlayY;
-  const drawHeight = overlayHeight - (H*0.8 - overlayY > 0 ? H*0.8 - overlayY : 0);
+  // 下端に合わせて画面にはみ出す場合は上を切る
+  if(overlayDrawHeight > H * 0.2){ 
+    overlayDrawHeight = H * 0.2;
+    overlayDrawWidth = overlayDrawHeight * overlayAspect;
+  }
 
+  const overlayX = (W - overlayDrawWidth) / 2;
+  const overlayY = H - overlayDrawHeight;
   ctx.drawImage(overlay, 0, 0, overlay.naturalWidth, overlay.naturalHeight,
-                0, drawY, overlayWidth, drawHeight);
+                overlayX, overlayY, overlayDrawWidth, overlayDrawHeight);
 
   lastImage = canvas.toDataURL("image/png");
   preview.src = lastImage;
