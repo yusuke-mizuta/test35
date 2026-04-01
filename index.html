@@ -2,12 +2,12 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Camera App Ultimate</title>
+<title>Camera App Ultra Quality</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; }
 
-/* --- Video --- */
+/* Video */
 #video {
   position:fixed;
   top:0;
@@ -15,17 +15,12 @@ body { margin:0; overflow:hidden; background:black; }
   height:80%;
   object-fit:cover;
 }
+.mirror { transform: scaleX(-1); }
 
-/* インカメ時だけミラー表示 */
-.mirror {
-  transform: scaleX(-1);
-}
-
-/* --- Overlay --- */
+/* Overlay */
 #overlay {
   position: fixed;
   bottom: 0;
-  left: 0;
   width: 100%;
   height: 20%;
   object-fit: cover;
@@ -33,7 +28,7 @@ body { margin:0; overflow:hidden; background:black; }
   pointer-events: none;
 }
 
-/* --- シャッター --- */
+/* Shutter */
 #shutter {
   position:fixed;
   bottom:22%;
@@ -44,26 +39,9 @@ body { margin:0; overflow:hidden; background:black; }
   border:6px solid white;
   border-radius:50%;
   background:rgba(255,255,255,0.1);
-  backdrop-filter: blur(5px);
-  z-index:10;
-  cursor:pointer;
-}
-#shutter::after {
-  content:"";
-  position:absolute;
-  top:50%;
-  left:50%;
-  width:110px;
-  height:110px;
-  background:white;
-  border-radius:50%;
-  transform:translate(-50%,-50%);
-}
-#shutter:active {
-  transform:translateX(-50%) scale(0.9);
 }
 
-/* --- カメラ切替（2倍）--- */
+/* Switch */
 #switchCam {
   position:fixed;
   bottom:25%;
@@ -72,49 +50,31 @@ body { margin:0; overflow:hidden; background:black; }
   height:120px;
   border-radius:50%;
   background:rgba(0,0,0,0.4);
-  backdrop-filter: blur(10px);
-  border:3px solid rgba(255,255,255,0.6);
   display:flex;
   align-items:center;
   justify-content:center;
-  z-index:10;
-  cursor:pointer;
-}
-#switchCam svg {
-  width:56px;
-  height:56px;
-  fill:white;
 }
 
-/* --- プレビュー --- */
+/* Preview */
 #preview {
   position:fixed;
-  top:0;
-  left:0;
   width:100%;
   height:100%;
   object-fit:cover;
   display:none;
-  background:black;
-  z-index:20;
 }
 
-/* --- ボタン（2倍）--- */
-#close, #save {
+/* Buttons */
+#close,#save{
   position:fixed;
   top:20px;
-  color:white;
   font-size:48px;
-  z-index:30;
   padding:16px 32px;
-  border-radius:20px;
   background:rgba(0,0,0,0.5);
-  backdrop-filter: blur(8px);
-  cursor:pointer;
+  color:white;
 }
-#close { left:20px; }
-#save { right:20px; }
-
+#close{left:20px;}
+#save{right:20px;}
 </style>
 </head>
 
@@ -124,12 +84,7 @@ body { margin:0; overflow:hidden; background:black; }
 <img id="overlay" src="画像1.jpg">
 
 <div id="shutter"></div>
-
-<div id="switchCam">
-  <svg viewBox="0 0 24 24">
-    <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6a6 6 0 01-6 6c-1.66 0-3.14-.69-4.22-1.78l-1.42 1.42A7.963 7.963 0 0012 21a8 8 0 000-16z"/>
-  </svg>
-</div>
+<div id="switchCam">🔄</div>
 
 <img id="preview">
 <div id="close">✖</div>
@@ -138,110 +93,103 @@ body { margin:0; overflow:hidden; background:black; }
 <canvas id="canvas" style="display:none;"></canvas>
 
 <script>
-let lastImage = null;
+let video = document.getElementById("video");
+let overlay = document.getElementById("overlay");
+let preview = document.getElementById("preview");
+
 let usingFront = false;
-let currentStream = null;
+let stream;
 
-const video = document.getElementById("video");
-const overlay = document.getElementById("overlay");
-const preview = document.getElementById("preview");
+/* --- カメラ（高解像度）--- */
+async function startCamera(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
 
-/* --- カメラ起動 --- */
-async function startCamera() {
-  if(currentStream) currentStream.getTracks().forEach(t => t.stop());
-  try {
-    const constraints = {
-      video: { facingMode: usingFront ? "user" : "environment" }
-    };
-    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-    video.srcObject = currentStream;
-
-    // ミラー切替
-    if(usingFront){
-      video.classList.add("mirror");
-    } else {
-      video.classList.remove("mirror");
+  stream = await navigator.mediaDevices.getUserMedia({
+    video:{
+      facingMode: usingFront?"user":"environment",
+      width:{ideal:2560},
+      height:{ideal:1440}
     }
+  });
 
-  } catch(e) {
-    alert("カメラ起動エラー: " + e);
+  video.srcObject = stream;
+
+  if(usingFront){
+    video.classList.add("mirror");
+  }else{
+    video.classList.remove("mirror");
   }
 }
 startCamera();
 
-/* --- 撮影（ここが核心）--- */
-document.getElementById("shutter").onclick = () => {
+/* --- 撮影（高画質処理）--- */
+document.getElementById("shutter").onclick = ()=>{
 
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
 
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-
-  canvas.width = W;
-  canvas.height = H;
-
   const vw = video.videoWidth;
   const vh = video.videoHeight;
 
-  const screenRatio = W / (H * 0.8);
+  // ⭐ 保存はカメラ解像度
+  canvas.width = vw;
+  canvas.height = vh;
+
+  const screenRatio = window.innerWidth / (window.innerHeight*0.8);
   const videoRatio = vw / vh;
 
-  let sx, sy, sw, sh;
+  let sx,sy,sw,sh;
 
-  // coverと同じ切り取り計算
+  // cover再現（高解像度版）
   if(videoRatio > screenRatio){
     sh = vh;
     sw = vh * screenRatio;
-    sx = (vw - sw) / 2;
+    sx = (vw - sw)/2;
     sy = 0;
-  } else {
+  }else{
     sw = vw;
     sh = vw / screenRatio;
     sx = 0;
-    sy = (vh - sh) / 2;
+    sy = (vh - sh)/2;
   }
 
-  // インカメは保存時は反転しない
+  const drawHeight = vh * 0.8;
+
+  // インカメ補正
   if(usingFront){
     ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, sx, sy, sw, sh, -W, 0, W, H*0.8);
+    ctx.scale(-1,1);
+    ctx.drawImage(video, sx,sy,sw,sh, -vw,0,vw,drawHeight);
     ctx.restore();
-  } else {
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, W, H*0.8);
+  }else{
+    ctx.drawImage(video, sx,sy,sw,sh, 0,0,vw,drawHeight);
   }
 
-  // overlay
+  // overlay（高解像度）
   ctx.drawImage(
     overlay,
-    0, 0, overlay.naturalWidth, overlay.naturalHeight,
-    0, H * 0.8, W, H * 0.2
+    0,0,overlay.naturalWidth,overlay.naturalHeight,
+    0,drawHeight,vw,vh*0.2
   );
 
-  lastImage = canvas.toDataURL("image/png");
-  preview.src = lastImage;
-  preview.style.display = "block";
+  preview.src = canvas.toDataURL("image/jpeg", 0.95); // 高品質JPEG
+  preview.style.display="block";
 };
 
-/* 閉じる */
-document.getElementById("close").onclick = () => {
-  preview.style.display = "none";
-};
+/* close */
+close.onclick=()=>preview.style.display="none";
 
-/* 保存 */
-document.getElementById("save").onclick = () => {
-  if(!lastImage) return alert("先に撮影してください");
-
-  const a = document.createElement("a");
-  a.href = lastImage;
-  a.download = "photo.png";
+/* save */
+save.onclick=()=>{
+  let a=document.createElement("a");
+  a.href=preview.src;
+  a.download="photo.jpg";
   a.click();
 };
 
-/* 切替 */
-document.getElementById("switchCam").onclick = () => {
-  usingFront = !usingFront;
+/* switch */
+switchCam.onclick=()=>{
+  usingFront=!usingFront;
   startCamera();
 };
 </script>
