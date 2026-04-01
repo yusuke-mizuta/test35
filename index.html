@@ -1,100 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Camera + Overlay</title>
+<meta charset="utf-8">
+<title>Camera App Stable</title>
 
-  <style>
-    body { margin: 0; overflow: hidden; }
-
-    /* カメラ映像 */
-    #video {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 80%;
-      object-fit: cover;
-      background: black;
-    }
-
-    /* 下20%の画像 */
-    #overlay {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 20%;
-      object-fit: cover;
-    }
-
-    /* 撮影ボタン */
-    #capture {
-      position: fixed;
-      bottom: 25%;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 15px;
-      font-size: 18px;
-      z-index: 10;
-    }
-
-    /* 撮影結果 */
-    #photo {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      width: 120px;
-      border: 2px solid white;
-    }
-  </style>
+<style>
+body { margin:0; overflow:hidden; background:black; }
+#video { position:fixed; top:0; width:100%; height:80%; object-fit:cover; background:black; }
+#overlay { position:fixed; bottom:0; width:100%; height:20%; object-fit:cover; }
+#shutter { position:fixed; bottom:25%; left:50%; transform:translateX(-50%); width:80px; height:80px; border:5px solid white; border-radius:50%; z-index:10; }
+#shutter::after { content:""; position:absolute; top:50%; left:50%; width:60px; height:60px; background:white; border-radius:50%; transform:translate(-50%,-50%); }
+#preview { position:fixed; top:0; left:0; width:100%; height:100%; object-fit:contain; display:none; background:black; z-index:20; }
+#close, #save { position:fixed; top:20px; color:white; font-size:22px; z-index:30; }
+#close { left:20px; }
+#save { right:20px; }
+</style>
 </head>
 
 <body>
 
-  <!-- カメラ -->
-  <video id="video" autoplay playsinline></video>
+<video id="video" autoplay playsinline></video>
+<img id="overlay" src="画像1.jpg">
+<div id="shutter"></div>
+<img id="preview">
+<div id="close">✖</div>
+<div id="save">💾</div>
+<canvas id="canvas" style="display:none;"></canvas>
 
-  <!-- 下20%画像 -->
-  <img id="overlay" src="画像1.jpg">
+<script>
+let lastImage = null;
+const video = document.getElementById("video");
+const preview = document.getElementById("preview");
+const overlay = document.getElementById("overlay");
 
-  <!-- 撮影 -->
-  <button id="capture">📸</button>
-  <canvas id="canvas" style="display:none;"></canvas>
-  <img id="photo">
+/* カメラ起動 */
+navigator.mediaDevices.getUserMedia({ video:true })
+.then(stream => video.srcObject = stream)
+.catch(e => alert("カメラ起動エラー: "+e));
 
-  <script>
-    const video = document.getElementById("video");
+/* 撮影 */
+document.getElementById("shutter").onclick = () => {
+  // overlay画像が未読み込みなら待機
+  if (!overlay.complete) { alert("画像読み込み中…"); return; }
 
-    // カメラ起動
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" }
-    })
-    .then(stream => {
-      video.srcObject = stream;
-    })
-    .catch(err => {
-      alert("カメラ許可エラー: " + err);
-    });
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
 
-    // 撮影
-    document.getElementById("capture").onclick = () => {
-      const canvas = document.getElementById("canvas");
-      const ctx = canvas.getContext("2d");
+  // iPhoneでも安定するように半分サイズ
+  canvas.width = window.innerWidth / 2;
+  canvas.height = window.innerHeight / 2;
 
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+  // カメラ描画（上80%）
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height*0.8);
 
-      // カメラ部分描画（上80%）
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height * 0.8);
+  // 下画像（下20%）
+  ctx.drawImage(overlay, 0, canvas.height*0.8, canvas.width, canvas.height*0.2);
 
-      // 下画像描画
-      const overlay = document.getElementById("overlay");
-      ctx.drawImage(overlay, 0, canvas.height * 0.8, canvas.width, canvas.height * 0.2);
+  lastImage = canvas.toDataURL("image/png");
 
-      document.getElementById("photo").src = canvas.toDataURL("image/png");
-    };
-  </script>
+  preview.src = lastImage;
+  preview.style.display = "block";
+};
 
+/* プレビュー閉じる */
+document.getElementById("close").onclick = () => { preview.style.display = "none"; };
+
+/* 保存 */
+document.getElementById("save").onclick = () => {
+  if (!lastImage) return alert("先に撮影してください");
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua)) {
+    const win = window.open();
+    win.document.write('<img src="'+lastImage+'" style="width:100%">');
+  } else {
+    const a = document.createElement("a");
+    a.href = lastImage;
+    a.download = "photo.png";
+    a.click();
+  }
+};
+</script>
 </body>
 </html>
