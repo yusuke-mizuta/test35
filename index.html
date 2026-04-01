@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Camera App Ultimate Final</title>
+<title>Camera App Perfect</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; }
@@ -12,7 +12,7 @@ body { margin:0; overflow:hidden; background:black; }
   position:fixed;
   top:0;
   width:100%;
-  height:80%;
+  height:100%;
   object-fit:cover;
 }
 .mirror { transform: scaleX(-1); }
@@ -66,6 +66,7 @@ body { margin:0; overflow:hidden; background:black; }
   height:100%;
   object-fit:cover;
   display:none;
+  z-index:10;
 }
 
 /* Buttons */
@@ -76,6 +77,7 @@ body { margin:0; overflow:hidden; background:black; }
   padding:16px 32px;
   background:rgba(0,0,0,0.5);
   color:white;
+  z-index:11;
 }
 #close{left:20px;}
 #save{right:20px;}
@@ -97,22 +99,27 @@ body { margin:0; overflow:hidden; background:black; }
 <canvas id="canvas" style="display:none;"></canvas>
 
 <script>
-let video = document.getElementById("video");
-let overlay = document.getElementById("overlay");
-let preview = document.getElementById("preview");
+const video = document.getElementById("video");
+const overlay = document.getElementById("overlay");
+const preview = document.getElementById("preview");
+const canvas = document.getElementById("canvas");
+
+const closeBtn = document.getElementById("close");
+const saveBtn = document.getElementById("save");
+const switchBtn = document.getElementById("switchCam");
 
 let usingFront = false;
 let stream;
 
-/* --- カメラ起動（高画質）--- */
+/* --- カメラ起動（最大画質）--- */
 async function startCamera(){
   if(stream) stream.getTracks().forEach(t=>t.stop());
 
   stream = await navigator.mediaDevices.getUserMedia({
     video:{
       facingMode: usingFront?"user":"environment",
-      width:{ideal:2560},
-      height:{ideal:1440}
+      width:{ideal:4096},
+      height:{ideal:2160}
     }
   });
 
@@ -126,29 +133,33 @@ async function startCamera(){
 }
 startCamera();
 
-/* --- 撮影（完全一致ロジック）--- */
+/* --- 撮影（完全一致 + 高画質）--- */
 document.getElementById("shutter").onclick = ()=>{
 
-  const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
 
   const vw = video.videoWidth;
   const vh = video.videoHeight;
 
-  const displayRatio = window.innerWidth / (window.innerHeight * 0.8);
+  const rect = video.getBoundingClientRect();
+  const displayWidth = rect.width;
+  const displayHeight = rect.height;
+  const displayRatio = displayWidth / displayHeight;
 
-  // ⭐ Canvasサイズ（←ここが最重要）
+  const dpr = window.devicePixelRatio || 1;
+
   const outputWidth = vw;
   const outputHeight = vw / displayRatio;
 
-  canvas.width = outputWidth;
-  canvas.height = outputHeight;
+  canvas.width = outputWidth * dpr;
+  canvas.height = outputHeight * dpr;
+
+  ctx.scale(dpr, dpr);
 
   const videoRatio = vw / vh;
 
   let sx, sy, sw, sh;
 
-  // object-fit: cover 完全再現
   if(videoRatio > displayRatio){
     sh = vh;
     sw = vh * displayRatio;
@@ -161,7 +172,6 @@ document.getElementById("shutter").onclick = ()=>{
     sy = (vh - sh) / 2;
   }
 
-  // インカメ補正
   if(usingFront){
     ctx.save();
     ctx.scale(-1,1);
@@ -171,7 +181,6 @@ document.getElementById("shutter").onclick = ()=>{
     ctx.drawImage(video, sx,sy,sw,sh, 0,0,outputWidth,outputHeight);
   }
 
-  // overlay（下20%）
   const overlayHeight = outputHeight * 0.2;
 
   ctx.drawImage(
@@ -182,15 +191,17 @@ document.getElementById("shutter").onclick = ()=>{
     overlayHeight
   );
 
-  preview.src = canvas.toDataURL("image/jpeg", 0.95);
+  preview.src = canvas.toDataURL("image/jpeg", 1.0);
   preview.style.display="block";
 };
 
 /* close */
-close.onclick=()=>preview.style.display="none";
+closeBtn.onclick = () => {
+  preview.style.display="none";
+};
 
 /* save */
-save.onclick=()=>{
+saveBtn.onclick = () => {
   let a=document.createElement("a");
   a.href=preview.src;
   a.download="photo.jpg";
@@ -198,7 +209,7 @@ save.onclick=()=>{
 };
 
 /* switch */
-switchCam.onclick=()=>{
+switchBtn.onclick = () => {
   usingFront=!usingFront;
   startCamera();
 };
