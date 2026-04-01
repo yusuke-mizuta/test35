@@ -2,40 +2,28 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Camera App Correct Overlay</title>
+<title>Camera App Fixed Overlay</title>
 <style>
 body { margin:0; overflow:hidden; background:black; }
 #video { position:fixed; top:0; width:100%; height:80%; object-fit:cover; }
-#overlay { position:fixed; bottom:0; width:100%; height:auto; object-fit:contain; }
+#overlay { position:fixed; bottom:0; width:100%; height:20%; object-fit:cover; }
 #shutter {
-  position:fixed;
-  bottom:25%;
-  left:50%;
-  transform:translateX(-50%);
-  width:100px; height:100px;
-  border:5px solid white;
-  border-radius:50%;
-  z-index:10;
+  position:fixed; bottom:25%; left:50%; transform:translateX(-50%);
+  width:100px; height:100px; border:5px solid white; border-radius:50%; z-index:10;
 }
 #shutter::after {
-  content:"";
-  position:absolute;
-  top:50%; left:50%;
-  width:70px; height:70px;
-  background:white; border-radius:50%;
-  transform:translate(-50%,-50%);
+  content:""; position:absolute; top:50%; left:50%; width:70px; height:70px;
+  background:white; border-radius:50%; transform:translate(-50%,-50%);
 }
 #switchCam {
-  position:fixed; bottom:25%; right:20px;
-  width:70px; height:70px;
-  border:3px solid white; border-radius:50%;
-  background:black; color:white; font-size:30px;
-  text-align:center; line-height:70px; cursor:pointer;
-  z-index:10;
+  position:fixed; bottom:25%; right:20px; width:70px; height:70px;
+  border:3px solid white; border-radius:50%; background:black; color:white;
+  font-size:30px; text-align:center; line-height:70px; cursor:pointer; z-index:10;
 }
 #preview { position:fixed; top:0; left:0; width:100%; height:100%; object-fit:contain; display:none; background:black; z-index:20; }
 #close, #save {
-  position:fixed; top:20px; color:white; font-size:28px; z-index:30; padding:5px 15px; border:2px solid white; border-radius:10px; background:rgba(0,0,0,0.4); cursor:pointer;
+  position:fixed; top:20px; color:white; font-size:28px; z-index:30;
+  padding:5px 15px; border:2px solid white; border-radius:10px; background:rgba(0,0,0,0.4); cursor:pointer;
 }
 #close { left:20px; }
 #save { right:20px; }
@@ -54,46 +42,39 @@ body { margin:0; overflow:hidden; background:black; }
 
 <script>
 let lastImage = null;
-let usingFront = false; // false = 背面, true = 前面
+let usingFront = false;
 let currentStream = null;
 
 const video = document.getElementById("video");
-const preview = document.getElementById("preview");
 const overlay = document.getElementById("overlay");
+const preview = document.getElementById("preview");
 
-/* カメラ起動 */
 async function startCamera() {
-  if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+  if(currentStream) currentStream.getTracks().forEach(t => t.stop());
   try {
     const constraints = { video: { facingMode: usingFront ? "user" : "environment" } };
     currentStream = await navigator.mediaDevices.getUserMedia(constraints);
     video.srcObject = currentStream;
-  } catch (e) {
-    alert("カメラ起動エラー: "+e);
-  }
+  } catch(e) { alert("カメラ起動エラー: "+e); }
 }
 startCamera();
 
 /* 撮影 */
 document.getElementById("shutter").onclick = () => {
-  if (!overlay.complete) { alert("画像読み込み中…"); return; }
+  if(!overlay.complete){ alert("画像読み込み中…"); return; }
 
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
 
-  const scale = 0.9;
-  canvas.width = window.innerWidth * scale;
-  canvas.height = window.innerHeight * scale;
+  // canvas = 画面サイズそのまま
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 
-  // カメラ描画（上80%）
+  // video 上80%
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height*0.8);
 
-  // overlayのアスペクト比維持
-  const overlayAspect = overlay.naturalWidth / overlay.naturalHeight;
-  const overlayWidth = canvas.width;
-  const overlayHeight = overlayWidth / overlayAspect;
-
-  ctx.drawImage(overlay, 0, canvas.height - overlayHeight, overlayWidth, overlayHeight);
+  // overlay 下20%
+  ctx.drawImage(overlay, 0, canvas.height*0.8, canvas.width, canvas.height*0.2);
 
   lastImage = canvas.toDataURL("image/png");
   preview.src = lastImage;
@@ -105,9 +86,9 @@ document.getElementById("close").onclick = () => { preview.style.display = "none
 
 /* 保存 */
 document.getElementById("save").onclick = () => {
-  if (!lastImage) return alert("先に撮影してください");
+  if(!lastImage) return alert("先に撮影してください");
   const ua = navigator.userAgent;
-  if (/iPhone|iPad|iPod/.test(ua)) {
+  if(/iPhone|iPad|iPod/.test(ua)){
     const win = window.open();
     win.document.write('<img src="'+lastImage+'" style="width:100%">');
   } else {
@@ -124,6 +105,5 @@ document.getElementById("switchCam").onclick = () => {
   startCamera();
 };
 </script>
-
 </body>
 </html>
