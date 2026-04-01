@@ -2,42 +2,143 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Camera App Overlay Crop Fixed</title>
+<title>Camera App Final</title>
+
 <style>
-body { margin:0; overflow:hidden; background:black; }
-#video { position:fixed; top:0; width:100%; height:80%; object-fit:cover; }
-#overlay { display:none; }
+body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
+
+/* --- Video --- */
+#video {
+  position:fixed;
+  top:0;
+  width:100%;
+  height:80%;
+  object-fit:cover;
+}
+
+/* --- Overlay（下20%に重ねる）--- */
+#overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 20%;
+  object-fit: cover;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* --- シャッターボタン（強化版）--- */
 #shutter {
-  position:fixed; bottom:25%; left:50%; transform:translateX(-50%);
-  width:100px; height:100px; border:5px solid white; border-radius:50%; z-index:10;
+  position:fixed;
+  bottom:22%;
+  left:50%;
+  transform:translateX(-50%);
+  width:150px;
+  height:150px;
+  border:6px solid white;
+  border-radius:50%;
+  background:rgba(255,255,255,0.1);
+  backdrop-filter: blur(5px);
+  z-index:10;
+  cursor:pointer;
+  transition: transform 0.1s;
 }
 #shutter::after {
-  content:""; position:absolute; top:50%; left:50%; width:70px; height:70px;
-  background:white; border-radius:50%; transform:translate(-50%,-50%);
+  content:"";
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:110px;
+  height:110px;
+  background:white;
+  border-radius:50%;
+  transform:translate(-50%,-50%);
 }
+#shutter:active {
+  transform:translateX(-50%) scale(0.9);
+}
+
+/* --- カメラ切替ボタン（アプリ風）--- */
 #switchCam {
-  position:fixed; bottom:25%; right:20px; width:70px; height:70px;
-  border:3px solid white; border-radius:50%; background:black; color:white;
-  font-size:30px; text-align:center; line-height:70px; cursor:pointer; z-index:10;
+  position:fixed;
+  bottom:25%;
+  right:20px;
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:rgba(0,0,0,0.4);
+  backdrop-filter: blur(10px);
+  border:1.5px solid rgba(255,255,255,0.6);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:10;
+  cursor:pointer;
+  transition: transform 0.15s, background 0.2s;
 }
-#preview { position:fixed; top:0; left:0; width:100%; height:100%; object-fit:contain; display:none; background:black; z-index:20; }
+#switchCam:active {
+  transform: scale(0.85);
+  background:rgba(255,255,255,0.2);
+}
+
+/* アイコン（SVG） */
+#switchCam svg {
+  width:28px;
+  height:28px;
+  fill:white;
+}
+
+/* --- プレビュー --- */
+#preview {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  display:none;
+  background:black;
+  z-index:20;
+}
+
+/* --- ボタン --- */
 #close, #save {
-  position:fixed; top:20px; color:white; font-size:28px; z-index:30;
-  padding:5px 15px; border:2px solid white; border-radius:10px; background:rgba(0,0,0,0.4); cursor:pointer;
+  position:fixed;
+  top:20px;
+  color:white;
+  font-size:24px;
+  z-index:30;
+  padding:8px 16px;
+  border-radius:12px;
+  background:rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  cursor:pointer;
 }
 #close { left:20px; }
 #save { right:20px; }
+
 </style>
 </head>
+
 <body>
 
 <video id="video" autoplay playsinline></video>
 <img id="overlay" src="画像1.jpg">
+
 <div id="shutter"></div>
-<div id="switchCam">🔄</div>
+
+<div id="switchCam">
+  <!-- SVGアイコン -->
+  <svg viewBox="0 0 24 24">
+    <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6a6 6 0 01-6 6c-1.66 0-3.14-.69-4.22-1.78l-1.42 1.42A7.963 7.963 0 0012 21a8 8 0 000-16z"/>
+  </svg>
+</div>
+
 <img id="preview">
 <div id="close">✖</div>
 <div id="save">💾</div>
+
 <canvas id="canvas" style="display:none;"></canvas>
 
 <script>
@@ -49,79 +150,73 @@ const video = document.getElementById("video");
 const overlay = document.getElementById("overlay");
 const preview = document.getElementById("preview");
 
+/* --- カメラ起動 --- */
 async function startCamera() {
   if(currentStream) currentStream.getTracks().forEach(t => t.stop());
   try {
-    const constraints = { video: { facingMode: usingFront ? "user" : "environment" } };
+    const constraints = {
+      video: { facingMode: usingFront ? "user" : "environment" }
+    };
     currentStream = await navigator.mediaDevices.getUserMedia(constraints);
     video.srcObject = currentStream;
-  } catch(e) { alert("カメラ起動エラー: "+e); }
+  } catch(e) {
+    alert("カメラ起動エラー: " + e);
+  }
 }
 startCamera();
 
-/* 撮影 */
+/* --- 撮影 --- */
 document.getElementById("shutter").onclick = () => {
-  if(!overlay.complete){ alert("画像読み込み中…"); return; }
 
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
 
   const W = window.innerWidth;
   const H = window.innerHeight;
+
   canvas.width = W;
   canvas.height = H;
 
-  // --- Video 縦横比維持で描画 ---
-  const videoAspect = video.videoWidth / video.videoHeight;
-  const videoDrawWidth = W;
-  const videoDrawHeight = videoDrawWidth / videoAspect;
-  const videoY = 0; // 上からスタート
-  ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, videoY, videoDrawWidth, videoDrawHeight);
+  /* --- video描画（縦横比維持）--- */
+  const vAspect = video.videoWidth / video.videoHeight;
+  const vW = W;
+  const vH = vW / vAspect;
 
-  // --- Overlay 縦横比維持で描画 ---
-  const overlayAspect = overlay.naturalWidth / overlay.naturalHeight;
-  let overlayDrawWidth = W;
-  let overlayDrawHeight = overlayDrawWidth / overlayAspect;
+  ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, vW, vH);
 
-  // 下端に合わせて画面にはみ出す場合は上を切る
-  if(overlayDrawHeight > H * 0.2){ 
-    overlayDrawHeight = H * 0.2;
-    overlayDrawWidth = overlayDrawHeight * overlayAspect;
-  }
-
-  const overlayX = (W - overlayDrawWidth) / 2;
-  const overlayY = H - overlayDrawHeight;
-  ctx.drawImage(overlay, 0, 0, overlay.naturalWidth, overlay.naturalHeight,
-                overlayX, overlayY, overlayDrawWidth, overlayDrawHeight);
+  /* --- overlay描画（下20%固定）--- */
+  ctx.drawImage(
+    overlay,
+    0, 0, overlay.naturalWidth, overlay.naturalHeight,
+    0, H * 0.8, W, H * 0.2
+  );
 
   lastImage = canvas.toDataURL("image/png");
   preview.src = lastImage;
   preview.style.display = "block";
 };
 
-/* プレビュー閉じる */
-document.getElementById("close").onclick = () => { preview.style.display = "none"; };
-
-/* 保存 */
-document.getElementById("save").onclick = () => {
-  if(!lastImage) return alert("先に撮影してください");
-  const ua = navigator.userAgent;
-  if(/iPhone|iPad|iPod/.test(ua)){
-    const win = window.open();
-    win.document.write('<img src="'+lastImage+'" style="width:100%">');
-  } else {
-    const a = document.createElement("a");
-    a.href = lastImage;
-    a.download = "photo.png";
-    a.click();
-  }
+/* --- 閉じる --- */
+document.getElementById("close").onclick = () => {
+  preview.style.display = "none";
 };
 
-/* カメラ切替 */
+/* --- 保存 --- */
+document.getElementById("save").onclick = () => {
+  if(!lastImage) return alert("先に撮影してください");
+
+  const a = document.createElement("a");
+  a.href = lastImage;
+  a.download = "photo.png";
+  a.click();
+};
+
+/* --- カメラ切替 --- */
 document.getElementById("switchCam").onclick = () => {
   usingFront = !usingFront;
   startCamera();
 };
 </script>
+
 </body>
 </html>
