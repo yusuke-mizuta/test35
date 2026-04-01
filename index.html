@@ -2,24 +2,17 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Camera App with Switch</title>
+<title>Camera App Correct Overlay</title>
 <style>
 body { margin:0; overflow:hidden; background:black; }
-
-/* カメラ映像 */
 #video { position:fixed; top:0; width:100%; height:80%; object-fit:cover; }
-
-/* 下画像 */
-#overlay { position:fixed; bottom:0; width:100%; height:20%; object-fit:cover; }
-
-/* シャッターボタン */
+#overlay { position:fixed; bottom:0; width:100%; height:auto; object-fit:contain; }
 #shutter {
   position:fixed;
   bottom:25%;
   left:50%;
   transform:translateX(-50%);
-  width:100px;
-  height:100px;
+  width:100px; height:100px;
   border:5px solid white;
   border-radius:50%;
   z-index:10;
@@ -27,56 +20,33 @@ body { margin:0; overflow:hidden; background:black; }
 #shutter::after {
   content:"";
   position:absolute;
-  top:50%;
-  left:50%;
-  width:70px;
-  height:70px;
-  background:white;
-  border-radius:50%;
+  top:50%; left:50%;
+  width:70px; height:70px;
+  background:white; border-radius:50%;
   transform:translate(-50%,-50%);
 }
-
-/* カメラ切替ボタン */
 #switchCam {
-  position:fixed;
-  bottom:25%;
-  right:20px;
-  width:70px;
-  height:70px;
-  border:3px solid white;
-  border-radius:50%;
-  background:black;
-  color:white;
-  font-size:30px;
+  position:fixed; bottom:25%; right:20px;
+  width:70px; height:70px;
+  border:3px solid white; border-radius:50%;
+  background:black; color:white; font-size:30px;
+  text-align:center; line-height:70px; cursor:pointer;
   z-index:10;
-  text-align:center;
-  line-height:70px;
-  cursor:pointer;
 }
-
-/* プレビュー */
-#preview { 
-  position:fixed; top:0; left:0; width:100%; height:100%; object-fit:contain; display:none; background:black; z-index:20;
-}
-
-/* 閉じる・保存ボタン */
+#preview { position:fixed; top:0; left:0; width:100%; height:100%; object-fit:contain; display:none; background:black; z-index:20; }
 #close, #save {
   position:fixed; top:20px; color:white; font-size:28px; z-index:30; padding:5px 15px; border:2px solid white; border-radius:10px; background:rgba(0,0,0,0.4); cursor:pointer;
 }
 #close { left:20px; }
 #save { right:20px; }
-
 </style>
 </head>
-
 <body>
 
 <video id="video" autoplay playsinline></video>
 <img id="overlay" src="画像1.jpg">
-
 <div id="shutter"></div>
 <div id="switchCam">🔄</div>
-
 <img id="preview">
 <div id="close">✖</div>
 <div id="save">💾</div>
@@ -84,18 +54,16 @@ body { margin:0; overflow:hidden; background:black; }
 
 <script>
 let lastImage = null;
-let usingFront = false; // false = 背面カメラ, true = 前面カメラ
+let usingFront = false; // false = 背面, true = 前面
 let currentStream = null;
 
 const video = document.getElementById("video");
 const preview = document.getElementById("preview");
 const overlay = document.getElementById("overlay");
 
+/* カメラ起動 */
 async function startCamera() {
-  // 既存ストリームがあれば停止
-  if (currentStream) {
-    currentStream.getTracks().forEach(track => track.stop());
-  }
+  if (currentStream) currentStream.getTracks().forEach(track => track.stop());
   try {
     const constraints = { video: { facingMode: usingFront ? "user" : "environment" } };
     currentStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -104,8 +72,6 @@ async function startCamera() {
     alert("カメラ起動エラー: "+e);
   }
 }
-
-// 初期カメラ起動
 startCamera();
 
 /* 撮影 */
@@ -115,19 +81,21 @@ document.getElementById("shutter").onclick = () => {
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
 
-  const scale = 0.9; // 少し縮小して安定
+  const scale = 0.9;
   canvas.width = window.innerWidth * scale;
   canvas.height = window.innerHeight * scale;
 
-  // カメラ映像（上80%）
+  // カメラ描画（上80%）
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height*0.8);
 
-  // 下画像（下20%）
-  ctx.drawImage(overlay, 0, canvas.height*0.8, canvas.width, canvas.height*0.2);
+  // overlayのアスペクト比維持
+  const overlayAspect = overlay.naturalWidth / overlay.naturalHeight;
+  const overlayWidth = canvas.width;
+  const overlayHeight = overlayWidth / overlayAspect;
+
+  ctx.drawImage(overlay, 0, canvas.height - overlayHeight, overlayWidth, overlayHeight);
 
   lastImage = canvas.toDataURL("image/png");
-
-  // プレビュー表示
   preview.src = lastImage;
   preview.style.display = "block";
 };
