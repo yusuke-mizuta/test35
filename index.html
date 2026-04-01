@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Camera App Ultra Quality</title>
+<title>Camera App Ultimate Final</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; }
@@ -40,6 +40,9 @@ body { margin:0; overflow:hidden; background:black; }
   border-radius:50%;
   background:rgba(255,255,255,0.1);
 }
+#shutter:active {
+  transform:translateX(-50%) scale(0.9);
+}
 
 /* Switch */
 #switchCam {
@@ -53,6 +56,7 @@ body { margin:0; overflow:hidden; background:black; }
   display:flex;
   align-items:center;
   justify-content:center;
+  font-size:40px;
 }
 
 /* Preview */
@@ -100,7 +104,7 @@ let preview = document.getElementById("preview");
 let usingFront = false;
 let stream;
 
-/* --- カメラ（高解像度）--- */
+/* --- カメラ起動（高画質）--- */
 async function startCamera(){
   if(stream) stream.getTracks().forEach(t=>t.stop());
 
@@ -122,7 +126,7 @@ async function startCamera(){
 }
 startCamera();
 
-/* --- 撮影（高画質処理）--- */
+/* --- 撮影（完全一致ロジック）--- */
 document.getElementById("shutter").onclick = ()=>{
 
   const canvas = document.getElementById("canvas");
@@ -131,48 +135,54 @@ document.getElementById("shutter").onclick = ()=>{
   const vw = video.videoWidth;
   const vh = video.videoHeight;
 
-  // ⭐ 保存はカメラ解像度
-  canvas.width = vw;
-  canvas.height = vh;
+  const displayRatio = window.innerWidth / (window.innerHeight * 0.8);
 
-  const screenRatio = window.innerWidth / (window.innerHeight*0.8);
+  // ⭐ Canvasサイズ（←ここが最重要）
+  const outputWidth = vw;
+  const outputHeight = vw / displayRatio;
+
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
+
   const videoRatio = vw / vh;
 
-  let sx,sy,sw,sh;
+  let sx, sy, sw, sh;
 
-  // cover再現（高解像度版）
-  if(videoRatio > screenRatio){
+  // object-fit: cover 完全再現
+  if(videoRatio > displayRatio){
     sh = vh;
-    sw = vh * screenRatio;
-    sx = (vw - sw)/2;
+    sw = vh * displayRatio;
+    sx = (vw - sw) / 2;
     sy = 0;
   }else{
     sw = vw;
-    sh = vw / screenRatio;
+    sh = vw / displayRatio;
     sx = 0;
-    sy = (vh - sh)/2;
+    sy = (vh - sh) / 2;
   }
-
-  const drawHeight = vh * 0.8;
 
   // インカメ補正
   if(usingFront){
     ctx.save();
     ctx.scale(-1,1);
-    ctx.drawImage(video, sx,sy,sw,sh, -vw,0,vw,drawHeight);
+    ctx.drawImage(video, sx,sy,sw,sh, -outputWidth,0,outputWidth,outputHeight);
     ctx.restore();
   }else{
-    ctx.drawImage(video, sx,sy,sw,sh, 0,0,vw,drawHeight);
+    ctx.drawImage(video, sx,sy,sw,sh, 0,0,outputWidth,outputHeight);
   }
 
-  // overlay（高解像度）
+  // overlay（下20%）
+  const overlayHeight = outputHeight * 0.2;
+
   ctx.drawImage(
     overlay,
     0,0,overlay.naturalWidth,overlay.naturalHeight,
-    0,drawHeight,vw,vh*0.2
+    0,outputHeight - overlayHeight,
+    outputWidth,
+    overlayHeight
   );
 
-  preview.src = canvas.toDataURL("image/jpeg", 0.95); // 高品質JPEG
+  preview.src = canvas.toDataURL("image/jpeg", 0.95);
   preview.style.display="block";
 };
 
